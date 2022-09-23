@@ -13,10 +13,19 @@ node {
         }
     }
 
-    stage('Deploy') {
-        docker.image('cdrx/pyinstaller-linux:python2').inside {
-            sh 'docker run --rm -v pyinstaller --onefile sources/add2vals.py' 
-            archiveArtifacts 'dist/add2vals'
-        }
+    stage('Manual Approval') {
+        input message: 'Lanjutkan ke tahap Deploy? (Klik "Proceed" untuk melanjutkan) dan (Klik "Abort" untuk mengakhiri)'
+        sh 'echo "Melanjutkan ke Tahap Deploy"'
     }
+
+    withEnv(['VOLUME=$(pwd)/sources:/src',
+             'IMAGE=cdrx/pyinstaller-linux:python2']) {
+                stage('Deploy') {
+                    unstash(name: 'compiled-results')
+                        sh "docker run --rm -v ${VOLUME} ${IMAGE} 'pyinstaller -F add2vals.py'"
+                        archiveArtifacts "sources/dist/add2vals"
+                        sh "docker run --rm -v ${VOLUME} ${IMAGE} 'rm -rf build dist'"
+                        sleep(time:60,unit:"SECONDS")
+                }
+            }
 }
